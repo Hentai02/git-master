@@ -2,8 +2,12 @@ package com.hentai.gitmaster.controllers;
 
 import com.hentai.gitmaster.dtos.LoginUserDto;
 import com.hentai.gitmaster.dtos.RegisterUserDto;
+import com.hentai.gitmaster.entities.Role;
+import com.hentai.gitmaster.entities.RoleEnum;
 import com.hentai.gitmaster.entities.User;
+import com.hentai.gitmaster.repositories.UserRepository;
 import com.hentai.gitmaster.responses.LoginResponse;
+import com.hentai.gitmaster.responses.RoleRepository;
 import com.hentai.gitmaster.services.AuthenticationService;
 import com.hentai.gitmaster.services.JwtService;
 import org.springframework.http.ResponseEntity;
