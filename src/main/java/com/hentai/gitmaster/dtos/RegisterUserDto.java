@@ -1,8 +1,5 @@
 package com.hentai.gitmaster.dtos;
 
-import com.hentai.gitmaster.entities.User;
-import lombok.Data;
-
 public class RegisterUserDto {
     private String email;
 
