@@ -81,10 +81,12 @@ public class GitStatsService {
                     String[] dateParts = key.date().split("-");
                     long totalAdded = list.stream().mapToLong(GitRawEntry::added).sum();
                     long totalRemoved = list.stream().mapToLong(GitRawEntry::removed).sum();
+                    long totalCommits = list.stream().mapToLong(GitRawEntry::commits).sum();
+                    long fileCount = list.stream().filter(e -> e.commits() == 0).count();
 
                     return new GitStatReport(
                             dateParts[0], dateParts[1], dateParts[2], key.author(),
-                            totalAdded, totalRemoved, (totalAdded - totalRemoved), list.size()
+                            totalAdded, totalRemoved, (totalAdded - totalRemoved), fileCount, totalCommits
                     );
                 })
                 .sorted(Comparator.comparing(GitStatReport::year)
@@ -156,6 +158,7 @@ public class GitStatsService {
                     Matcher dateMatcher = datePattern.matcher(line);
                     if (dateMatcher.matches()) {
                         currentDate = line;
+                        rawData.add(new GitRawEntry(currentDate, author, projectName, 0, 0, 1));
                         continue;
                     }
 
@@ -163,7 +166,7 @@ public class GitStatsService {
                     if (statMatcher.matches() && currentDate != null) {
                         int added = Integer.parseInt(statMatcher.group(1));
                         int removed = Integer.parseInt(statMatcher.group(2));
-                        rawData.add(new GitRawEntry(currentDate, author, projectName, added, removed));
+                        rawData.add(new GitRawEntry(currentDate, author, projectName, added, removed, 0));
                     }
                 }
             }

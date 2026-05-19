@@ -17,9 +17,9 @@ public class GitReportService {
 
     public String formatTable(List<GitStatReport> reports) {
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%-12s %-12s %-12s %-15s %-10s %-10s %-10s %-10s\n",
-                "Year", "Month", "Day", "Author", "Added", "Removed", "Net", "Files"));
-        sb.append("-".repeat(95)).append("\n");
+        sb.append(String.format("%-12s %-12s %-12s %-15s %-10s %-10s %-10s %-10s %-10s\n",
+                "Year", "Month", "Day", "Author", "Added", "Removed", "Net", "Files", "Commits"));
+        sb.append("-".repeat(107)).append("\n");
         for (GitStatReport r : reports) {
             sb.append(r).append("\n");
         }
@@ -35,11 +35,11 @@ public class GitReportService {
         String fileName = "git_report_sofar_" + timestamp + ".csv";
 
         List<String> lines = new ArrayList<>();
-        lines.add("\"Year\",\"Month\",\"Day\",\"Author\",\"Added\",\"Removed\",\"Net\",\"Files\"");
+        lines.add("\"Year\",\"Month\",\"Day\",\"Author\",\"Added\",\"Removed\",\"Net\",\"Files\",\"Commits\"");
 
         for (GitStatReport r : reports) {
-            lines.add(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%d\",\"%d\",\"%d\",\"%d\"",
-                    r.year(), r.month(), r.day(), r.author(), r.added(), r.removed(), r.net(), r.files()));
+            lines.add(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%d\",\"%d\",\"%d\",\"%d\",\"%d\"",
+                    r.year(), r.month(), r.day(), r.author(), r.added(), r.removed(), r.net(), r.files(), r.commits()));
         }
 
         try {
@@ -54,11 +54,11 @@ public class GitReportService {
 
     public String generateCsvContent(List<GitStatReport> reports) {
         StringBuilder sb = new StringBuilder();
-        sb.append("\"Year\",\"Month\",\"Day\",\"Author\",\"Added\",\"Removed\",\"Net\",\"Files\"\n");
+        sb.append("\"Year\",\"Month\",\"Day\",\"Author\",\"Added\",\"Removed\",\"Net\",\"Files\",\"Commits\"\n");
 
         for (GitStatReport r : reports) {
-            sb.append(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%d\",\"%d\",\"%d\",\"%d\"\n",
-                    r.year(), r.month(), r.day(), r.author(), r.added(), r.removed(), r.net(), r.files()));
+            sb.append(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%d\",\"%d\",\"%d\",\"%d\",\"%d\"\n",
+                    r.year(), r.month(), r.day(), r.author(), r.added(), r.removed(), r.net(), r.files(), r.commits()));
         }
 
         return sb.toString();
