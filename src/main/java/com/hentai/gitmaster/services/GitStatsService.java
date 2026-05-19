@@ -13,10 +13,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -36,7 +40,7 @@ public class GitStatsService {
     }
 
     public List<GitStatReport> collectDailyStats() {
-        return collectDailyStats(null, null);
+        return collectDailyStats("midnight", null);
     }
 
     public List<GitStatReport> collectDailyStats(String since, String until) {
@@ -50,6 +54,7 @@ public class GitStatsService {
                 .toList();
 
         ConcurrentLinkedQueue<GitRawEntry> rawData = new ConcurrentLinkedQueue<>();
+        Set<String> targetAuthors = new HashSet<>(authors);
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             for (String pathStr : projectPaths) {
@@ -59,9 +64,7 @@ public class GitStatsService {
                         String pName = projectPath.getFileName().toString();
 
                         System.out.println("\u001B[36mAnalyzing: " + pName + "\u001B[0m");
-                        for (String author : authors) {
-                            analyzeGitLog(projectPath, pName, author, rawData, since, until);
-                        }
+                        analyzeGitLog(projectPath, pName, rawData, since, until, targetAuthors);
                     }
                 });
             }
@@ -102,18 +105,23 @@ public class GitStatsService {
         Path path = Paths.get(projectPath);
         if (Files.exists(path) && Files.isDirectory(path)) {
             String pName = path.getFileName().toString();
-            analyzeGitLog(path, pName, author, rawData, null, null);
+            analyzeGitLog(path, pName, rawData, null, null, Set.of(author));
         }
         return new ArrayList<>(rawData);
     }
 
-    private void analyzeGitLog(Path projectPath, String projectName, String author,
+    private void analyzeGitLog(Path projectPath, String projectName,
                                ConcurrentLinkedQueue<GitRawEntry> rawData,
-                               String since, String until) {
+                               String since, String until, Set<String> targetAuthors) {
         try {
-            List<String> command = new ArrayList<>(List.of("git", "log",
-                    "--author=" + author,
-                    "--pretty=format:%ad",
+            List<String> command = new ArrayList<>();
+            command.add("git");
+            command.add("log");
+            for (String author : targetAuthors) {
+                command.add("--author=" + author);
+            }
+            command.addAll(List.of(
+                    "--pretty=format:%ad|%an",
                     "--date=short",
                     "--numstat"));
 
@@ -128,30 +136,39 @@ public class GitStatsService {
                     .directory(projectPath.toFile())
                     .start();
 
-            Pattern datePattern = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$");
+            Pattern headerPattern = Pattern.compile("^(\\d{4}-\\d{2}-\\d{2})\\|(.+)$");
             Pattern statPattern = Pattern.compile("^(\\d+)\\s+(\\d+)\\s+(.+)$");
 
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
                 String currentDate = null;
+                String currentAuthor = null;
 
                 while ((line = reader.readLine()) != null) {
                     line = line.trim();
                     if (line.isEmpty()) continue;
 
-                    Matcher dateMatcher = datePattern.matcher(line);
-                    if (dateMatcher.matches()) {
-                        currentDate = line;
-                        rawData.add(new GitRawEntry(currentDate, author, projectName, 0, 0, 1));
-                        continue;
+                    // 优先尝试匹配 Header (日期|作者)
+                    Matcher headerMatcher = headerPattern.matcher(line);
+                    if (headerMatcher.matches()) {
+                        currentDate = headerMatcher.group(1);
+                        currentAuthor = headerMatcher.group(2);
+                        // 成功记录一次 commit，即使没有文件变动统计
+                        rawData.add(new GitRawEntry(currentDate, currentAuthor, projectName, 0, 0, 1));
+                        continue;// 匹配到 Header 就可以直接跳到下一行了
                     }
 
+                    // 如果还没读到 Header，说明是无用干扰行，直接略过
+                    if (currentDate == null || currentAuthor == null) continue;
+
+                    // 尝试匹配文件变更行 (--numstat)
                     Matcher statMatcher = statPattern.matcher(line);
-                    if (statMatcher.matches() && currentDate != null) {
+                    if (statMatcher.matches()) {
                         int added = Integer.parseInt(statMatcher.group(1));
                         int removed = Integer.parseInt(statMatcher.group(2));
-                        rawData.add(new GitRawEntry(currentDate, author, projectName, added, removed, 0));
+                        // 记录增加、删除行数 (此时 commits 传 0)
+                        rawData.add(new GitRawEntry(currentDate, currentAuthor, projectName, added, removed, 0));
                     }
                 }
             }

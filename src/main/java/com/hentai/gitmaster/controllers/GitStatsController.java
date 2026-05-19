@@ -29,7 +29,9 @@ public class GitStatsController {
     public ResponseEntity<List<GitStatReport>> getDailyStats(
             @RequestParam(required = false) String since,
             @RequestParam(required = false) String until) {
-        List<GitStatReport> reports = gitStatsService.collectDailyStats(since, until);
+        List<GitStatReport> reports = (since != null || until != null)
+                ? gitStatsService.collectDailyStats(since, until)
+                : gitStatsService.collectDailyStats();
         return ResponseEntity.ok(reports);
     }
 
@@ -37,7 +39,9 @@ public class GitStatsController {
     public ResponseEntity<String> getDailyStatsCsv(
             @RequestParam(required = false) String since,
             @RequestParam(required = false) String until) {
-        List<GitStatReport> reports = gitStatsService.collectDailyStats(since, until);
+        List<GitStatReport> reports = (since != null || until != null)
+                ? gitStatsService.collectDailyStats(since, until)
+                : gitStatsService.collectDailyStats();
         String csv = gitReportService.generateCsvContent(reports);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=git_report.csv")
