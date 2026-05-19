@@ -36,7 +36,11 @@ public class GitStatsService {
     }
 
     public List<GitStatReport> collectDailyStats() {
-        System.out.println("\u001B[33m--- Git Daily Statistics (So far) ---\u001B[0m");
+        return collectDailyStats(null, null);
+    }
+
+    public List<GitStatReport> collectDailyStats(String since, String until) {
+        System.out.println("\u001B[33m--- Git Daily Statistics ---\u001B[0m");
 
         List<String> projectPaths = StreamSupport.stream(gitProjectRepository.findAll().spliterator(), false)
                 .map(p -> p.getPath())
@@ -54,11 +58,9 @@ public class GitStatsService {
                     if (Files.exists(projectPath) && Files.isDirectory(projectPath)) {
                         String pName = projectPath.getFileName().toString();
 
-                        runGitPull(projectPath, pName);
-
                         System.out.println("\u001B[36mAnalyzing: " + pName + "\u001B[0m");
                         for (String author : authors) {
-                            analyzeGitLog(projectPath, pName, author, rawData);
+                            analyzeGitLog(projectPath, pName, author, rawData, since, until);
                         }
                     }
                 });
@@ -100,46 +102,29 @@ public class GitStatsService {
         Path path = Paths.get(projectPath);
         if (Files.exists(path) && Files.isDirectory(path)) {
             String pName = path.getFileName().toString();
-            runGitPull(path, pName);
-            analyzeGitLog(path, pName, author, rawData);
+            analyzeGitLog(path, pName, author, rawData, null, null);
         }
         return new ArrayList<>(rawData);
     }
 
-    private void runGitPull(Path projectPath, String projectName) {
-        try {
-            Process process = new ProcessBuilder("git", "pull")
-                    .directory(projectPath.toFile())
-                    .redirectErrorStream(true)
-                    .start();
-
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                StringBuilder output = new StringBuilder();
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                }
-                int exitCode = process.waitFor();
-                if (exitCode != 0) {
-                    System.out.print("\u001B[31m" + output + "\u001B[0m");
-                } else {
-                    System.out.print("\u001B[32m" + output + "\u001B[0m");
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("\u001B[31mFailed to execute git pull for " + projectName + "\u001B[0m");
-        }
-    }
-
     private void analyzeGitLog(Path projectPath, String projectName, String author,
-                               ConcurrentLinkedQueue<GitRawEntry> rawData) {
+                               ConcurrentLinkedQueue<GitRawEntry> rawData,
+                               String since, String until) {
         try {
-            Process process = new ProcessBuilder("git", "log",
+            List<String> command = new ArrayList<>(List.of("git", "log",
                     "--author=" + author,
                     "--pretty=format:%ad",
                     "--date=short",
-                    "--numstat")
+                    "--numstat"));
+
+            if (since != null && !since.isBlank()) {
+                command.add("--since=" + since);
+            }
+            if (until != null && !until.isBlank()) {
+                command.add("--until=" + until);
+            }
+
+            Process process = new ProcessBuilder(command)
                     .directory(projectPath.toFile())
                     .start();
 
