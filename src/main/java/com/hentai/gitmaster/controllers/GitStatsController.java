@@ -1,6 +1,7 @@
 package com.hentai.gitmaster.controllers;
 
 import com.hentai.gitmaster.dtos.GitStatReport;
+import com.hentai.gitmaster.dtos.SearchGitStatReportDto;
 import com.hentai.gitmaster.entities.CacheData;
 import com.hentai.gitmaster.repositories.CacheDataRepository;
 import com.hentai.gitmaster.services.GitReportService;
@@ -8,6 +9,7 @@ import com.hentai.gitmaster.services.GitStatsService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -38,28 +40,24 @@ public class GitStatsController {
     }
 
     @GetMapping("/daily")
-    public ResponseEntity<List<GitStatReport>> getDailyStats(
-            @RequestParam(required = false) String since,
-            @RequestParam(required = false) String until) {
-
-        Optional<CacheData> optionalCacheData = cacheDataRepository.findById("daily_stats");
+    public ResponseEntity<List<GitStatReport>> getDailyStats(SearchGitStatReportDto searchGitStatReportDto) {
+        String cacheKey = searchGitStatReportDto.buildCacheKey("searchReports");
+        Optional<CacheData> optionalCacheData = cacheDataRepository.findById(cacheKey);
 
         // Cache hit
         if (optionalCacheData.isPresent()) {
             String reportAsString = optionalCacheData.get().getValue();
 
-            TypeReference<List<GitStatReport>> mapType = new TypeReference<List<GitStatReport>>() {};
+            TypeReference<List<GitStatReport>> mapType = new TypeReference<>() {};
             List<GitStatReport> reports = objectMapper.readValue(reportAsString, mapType);
 
             return ResponseEntity.ok(reports);
         }
 
         // Cache miss
-        List<GitStatReport> reports = (since != null || until != null)
-                ? gitStatsService.collectDailyStats(since, until)
-                : gitStatsService.collectDailyStats();
+        List<GitStatReport> reports = gitStatsService.search(searchGitStatReportDto);
         String reportsAsJsonString = objectMapper.writeValueAsString(reports);
-        CacheData cacheData = new CacheData("daily_stats", reportsAsJsonString);
+        CacheData cacheData = new CacheData(cacheKey, reportsAsJsonString, 600L);
         cacheDataRepository.save(cacheData);
 
         return ResponseEntity.ok(reports);

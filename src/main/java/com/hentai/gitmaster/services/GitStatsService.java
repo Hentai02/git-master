@@ -3,6 +3,7 @@ package com.hentai.gitmaster.services;
 import com.hentai.gitmaster.dtos.GitGroupKey;
 import com.hentai.gitmaster.dtos.GitRawEntry;
 import com.hentai.gitmaster.dtos.GitStatReport;
+import com.hentai.gitmaster.dtos.SearchGitStatReportDto;
 import com.hentai.gitmaster.repositories.GitAuthorRepository;
 import com.hentai.gitmaster.repositories.GitProjectRepository;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,16 @@ public class GitStatsService {
 
     public List<GitStatReport> collectDailyStats() {
         return collectDailyStats("midnight", null);
+    }
+
+    public List<GitStatReport> search(SearchGitStatReportDto searchGitStatReportDto) {
+        String since = searchGitStatReportDto.getSince();
+        String until = searchGitStatReportDto.getUntil();
+        if (since != null || until != null) {
+            return collectDailyStats(since, until);
+        }else {
+            return collectDailyStats();
+        }
     }
 
     public List<GitStatReport> collectDailyStats(String since, String until) {
