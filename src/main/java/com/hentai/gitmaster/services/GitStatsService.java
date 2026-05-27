@@ -141,6 +141,14 @@ public class GitStatsService {
             }
             if (until != null && !until.isBlank()) {
                 command.add("--until=" + until);
+                // The issue is that Git's --until flag uses exclusive semantics: --until=2026-05-26 means "before May 26th",
+                // so commits on the 26th are excluded. The fix is to add one day to the until date so it becomes inclusive.
+                /*try {
+                    LocalDate untilDate = LocalDate.parse(until);
+                    command.add("--until=" + untilDate.plusDays(1));
+                } catch (Exception e) {
+                    command.add("--until=" + until);
+                }*/
             }
 
             Process process = new ProcessBuilder(command)
